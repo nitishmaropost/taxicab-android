@@ -1,34 +1,62 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.coordinatorlayout.widget.CoordinatorLayout
-        xmlns:android="http://schemas.android.com/apk/res/android"
-        xmlns:app="http://schemas.android.com/apk/res-auto"
-        xmlns:tools="http://schemas.android.com/tools"
+
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@android:color/white">
+
+    <FrameLayout
+        android:id="@+id/toolbarFrame"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        tools:context=".MainActivity">
+        android:layout_height="wrap_content">
 
-    <com.google.android.material.appbar.AppBarLayout
-            android:layout_height="wrap_content"
-            android:layout_width="match_parent"
-            android:theme="@style/AppTheme.AppBarOverlay">
-
-        <androidx.appcompat.widget.Toolbar
+            <android.support.v7.widget.Toolbar
                 android:id="@+id/toolbar"
                 android:layout_width="match_parent"
                 android:layout_height="?attr/actionBarSize"
-                android:background="?attr/colorPrimary"
-                app:popupTheme="@style/AppTheme.PopupOverlay"/>
+                android:background="@color/colorPrimary">
+                <RelativeLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:orientation="horizontal">
 
-    </com.google.android.material.appbar.AppBarLayout>
+                    <ImageView
+                        android:id="@+id/imgToolbarLeftIcon"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_alignParentStart="true"
+                        android:paddingTop="@dimen/dp_8"
+                        android:paddingBottom="@dimen/dp_5"
+                        android:paddingEnd="@dimen/dp_8"
+                        android:src="@drawable/ic_menu"
+                        android:layout_centerVertical="true"/>
+                    <TextView
+                        android:id="@+id/toolbarTitle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_toEndOf="@+id/imgToolbarLeftIcon"
+                        android:layout_centerVertical="true"
+                        android:textColor="@color/colorWhite"
+                        android:layout_marginStart="@dimen/dp_5"
+                        android:textSize="@dimen/sp_20"/>
+                    <ImageView
+                        android:id="@+id/imgToolbarRightIcon"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_alignParentEnd="true"
+                        android:layout_centerVertical="true"
+                        android:layout_marginEnd="@dimen/dp_10"/>
+                </RelativeLayout>
+            </android.support.v7.widget.Toolbar>
 
-    <include layout="@layout/content_main"/>
+        <com.miguelcatalan.materialsearchview.MaterialSearchView
+            android:id="@+id/search_view"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
 
-    <com.google.android.material.floatingactionbutton.FloatingActionButton
-            android:id="@+id/fab"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="bottom|end"
-            android:layout_margin="@dimen/fab_margin"
-            app:srcCompat="@android:drawable/ic_dialog_email"/>
+    </FrameLayout>
 
-</androidx.coordinatorlayout.widget.CoordinatorLayout>
+    <!--Container to inflate fragments-->
+    <include layout="@layout/content_main" />
+</LinearLayout>

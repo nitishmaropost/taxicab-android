@@ -6,4 +6,24 @@
     <string name="nav_header_subtitle">android.studio@android.com</string>
     <string name="nav_header_desc">Navigation header</string>
     <string name="action_settings">Settings</string>
+
+    <string name="application_key">AIzaSyAEhR-6_etOKL0oQGxANUFX8iHjKGrfCG0</string>
+
+    <string name="login">Login</string>
+    <string name="Title1">Tab</string>
+    <string name="Title2">Tab 2</string>
+    <string name="Title3">Tab 3</string>
+    <string name="Fragment1">Fragment</string>
+    <string name="Fragment2">Fragment</string>
+
+    <string name="login_failure">Login Failure</string>
+    <string name="skip">Skip</string>
+
+    <string name="simple_fragment_transition">simple_fragment_transition</string>
+
+
+    <string name="shared_element_transition">Shared Element Transition</string>
+    <string name="google_geofencing">Google Geofencing</string>
+    <string name="fetch_data_with_mvvm">Fetch data with MVVM</string>
+
 </resources>
