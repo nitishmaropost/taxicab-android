@@ -43,7 +43,7 @@ class SearchFragment : BaseFragment() {
         autocompleteFragment?.setOnPlaceSelectedListener(object : PlaceSelectionListener {
             override fun onPlaceSelected(place: Place) {
 
-                Log.i("", "Place: " + place.name)//get place details here
+               // Log.i("", "Place: " + place.name)//get place details here
             }
 
             override fun onError(p0: Status?) {
