@@ -1,26 +1,18 @@
 package com.maropost.taxicab.view.fragments
 
 import android.Manifest
-import android.annotation.SuppressLint
-import android.app.PendingIntent
-import android.content.Intent
-import android.content.IntentSender
+import android.arch.lifecycle.Observer
 import android.content.pm.PackageManager
-import android.graphics.Color
 import android.location.Location
-import android.os.AsyncTask
 import android.os.Build
 import android.os.Bundle
-import android.os.Looper
 import android.support.v4.content.ContextCompat
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Toast
-import com.google.android.gms.common.api.ApiException
-import com.google.android.gms.common.api.ResolvableApiException
-import com.google.android.gms.location.*
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.GeofencingClient
+import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
@@ -28,15 +20,11 @@ import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.*
 import com.kotlinpermissions.KotlinPermissions
 import com.maropost.taxicab.R
-import com.maropost.taxicab.services.LocationAlertIntentService
-import com.maropost.taxicab.utils.Constants
-import org.json.JSONObject
-import java.io.BufferedReader
-import java.io.IOException
-import java.io.InputStream
-import java.io.InputStreamReader
-import java.net.HttpURLConnection
-import java.net.URL
+import com.maropost.taxicab.utils.LatLngInterpolator
+import com.maropost.taxicab.utils.MarkerAnimation
+import com.maropost.taxicab.utils.Utility
+import com.maropost.taxicab.viewmodel.MapsViewModel
+import kotlinx.android.synthetic.main.maps_fragment.*
 
 class MapFragment : BaseFragment(), OnMapReadyCallback {
 
@@ -44,18 +32,16 @@ class MapFragment : BaseFragment(), OnMapReadyCallback {
     private val REQUEST_CHECK_SETTINGS = 100
     private var mGoogleMap: GoogleMap? = null
     private var mapFragment: SupportMapFragment? = null
-    private var mLocationRequest: LocationRequest? = null
-    private var mLastLocation: Location? = null
     private var mCurrLocationMarker: Marker? = null
     private var mFusedLocationClient: FusedLocationProviderClient? = null
-    //meters
-    private val GEOFENCE_RADIUS : Float = 500F
-    //in milli seconds
-    private val GEOFENCE_EXPIRATION = 6000
+    //private val GEOFENCE_RADIUS : Float = 500F
     private lateinit var geofencingClient :GeofencingClient
-    private var mapCircle : Circle ? = null
+    //private var mapCircle : Circle ? = null
     //private var yourLocationMarker : MarkerOptions ?= null
     private lateinit var points : ArrayList<LatLng>
+    private var firstTimeFlag: Boolean = true
+    private val mapsViewModel = MapsViewModel()
+
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
         if(mView == null) {
@@ -71,9 +57,16 @@ class MapFragment : BaseFragment(), OnMapReadyCallback {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        setTitle(resources.getString(R.string.Fragment2))
+        setTitle("")
         showNavigationDrawer(false)
         showToolbar(false)
+        observeLiveDataChanges()
+        initialiseListeners()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        requestLocationUpdates()
     }
 
     override fun onPause() {
@@ -88,6 +81,25 @@ class MapFragment : BaseFragment(), OnMapReadyCallback {
         checkForLocationPermission()
     }
 
+    private fun observeLiveDataChanges(){
+        mapsViewModel.currentLocation.observe(this, Observer { location ->
+            if (firstTimeFlag && mGoogleMap != null) {
+                animateCamera(location!!)
+                firstTimeFlag = false
+                showMarker(location)
+                txtPickup.text= Utility.getInstance().getCompleteAddressString(activity!!,location.latitude,location.longitude)
+            }
+        })
+    }
+
+    private fun initialiseListeners() {
+        lnrPickup.setOnClickListener{
+        replaceFragment(SearchFragment(),true)
+        }
+        lnrDrop.setOnClickListener{
+
+        }
+    }
 
 
     private fun checkForLocationPermission() {
@@ -110,95 +122,42 @@ class MapFragment : BaseFragment(), OnMapReadyCallback {
         }
     }
 
-    @SuppressLint("MissingPermission")
     private fun requestLocationUpdates(){
-        mLocationRequest = LocationRequest()
-        mLocationRequest?.interval = 12000 // two minute interval
-        mLocationRequest?.fastestInterval = 12000
-        mLocationRequest?.priority = LocationRequest.PRIORITY_HIGH_ACCURACY
-        val builder = LocationSettingsRequest.Builder()
-            .addLocationRequest(mLocationRequest!!)
-        builder.setAlwaysShow(true)
-        val locationServices = LocationServices.getSettingsClient(activity!!).checkLocationSettings(builder.build());
-        locationServices.addOnCompleteListener { task ->
-            try {
-                // The request for location has been provided. Just a simple response callback is provided
-                // If required, can have a look at the response then.
-                // NOTE -> Location will automatically be fetched because it has already been requested in the call outside the block
-                val response = task.getResult(ApiException::class.java)
-            }
-            catch (exception: ApiException) {
-                when(exception.statusCode){
-                    LocationSettingsStatusCodes.RESOLUTION_REQUIRED ->{
-                        // Location settings are not satisfied. But could be fixed by showing the user a dialog.
-                        try {
-                            // Cast to a resolvable exception.
-                            val resolvable = exception as ResolvableApiException
-                            // Show the dialog by calling startResolutionForResult(),
-                            // and check the result in onActivityResult().
-                            resolvable.startResolutionForResult(activity,REQUEST_CHECK_SETTINGS);
-                        }
-                        catch (e: IntentSender.SendIntentException) {
-                            // Ignore the error.
-                        }
-                        catch (e: ClassCastException) {
-                            // Ignore, should be an impossible error.
-                        }
-                    }
-                }
-            }
-        }
-        mFusedLocationClient?.requestLocationUpdates(mLocationRequest, mLocationCallback, Looper.myLooper())
-        mGoogleMap?.isMyLocationEnabled = true
+        if(mGoogleMap != null)
+        mapsViewModel.requestLocationUpdates(activity!!,mFusedLocationClient,mGoogleMap!!,REQUEST_CHECK_SETTINGS)
     }
 
 
-    /**
-     * Callback for location received
-     */
-    internal var mLocationCallback: LocationCallback = object : LocationCallback() {
-        override fun onLocationResult(locationResult: LocationResult) {
-            val locationList = locationResult.locations
-            if (locationList.size > 0) {
-                //The last location in the list is the newest
-                val location = locationList[locationList.size - 1]
-                Log.i("MapsActivity", "Location: " + location.latitude + " " + location.longitude)
-                mLastLocation = location
-                if (mCurrLocationMarker != null) {
-                    mCurrLocationMarker?.remove()
-                }
-
-                //Place current location marker
-                val latLng = LatLng(location.latitude, location.longitude)
-                Toast.makeText(activity,
-                    "Latitude :" + location.latitude + " " + "Longitude " + location.longitude,
-                    Toast.LENGTH_LONG).show()
-                val markerOptions = MarkerOptions()
-                markerOptions.position(latLng)
-                markerOptions.title("Current Position")
-                markerOptions.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_MAGENTA))
-                mCurrLocationMarker = mGoogleMap?.addMarker(markerOptions)
-
-                //move map camera
-                mGoogleMap?.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 11f))
-
-                // If do not want location updates further, remove them.
-                //removeLocationUpdates()
-            }
+    private fun animateCamera(location: Location) {
+        if(mGoogleMap != null) {
+            val latLng = LatLng(location.latitude, location.longitude)
+            mGoogleMap?.animateCamera(CameraUpdateFactory.newCameraPosition(getCameraPositionWithBearing(latLng)));
         }
     }
 
-    private fun removeLocationUpdates() {
+     private fun getCameraPositionWithBearing(latLng: LatLng):CameraPosition {
+        return CameraPosition.Builder().target(latLng).zoom(16f).build()
+    }
+
+    private fun showMarker(currentLocation: Location) {
+        val latLng = LatLng(currentLocation.latitude, currentLocation.longitude)
+        if (mCurrLocationMarker == null)
+            mCurrLocationMarker = mGoogleMap?.addMarker(MarkerOptions().icon(BitmapDescriptorFactory.defaultMarker()).position(latLng))
+        else
+            MarkerAnimation.animateMarkerToGB(mCurrLocationMarker!!, latLng, LatLngInterpolator.Spherical())
+    }
+
+
+   private fun removeLocationUpdates() {
         if (mFusedLocationClient != null)
-            mFusedLocationClient?.removeLocationUpdates(mLocationCallback)
+            mapsViewModel.removeLocationUpdates(mFusedLocationClient!!)
     }
 
+/*
     @SuppressLint("MissingPermission")
     private fun addLocationAlert(lat: Double, lng: Double){
-
         val key : String = "" + lat + "" + lng
         val geofence = getGeofence(lat, lng, key)
-
         if(mapCircle != null) {
             mapCircle?.remove()
             mapCircle = null
@@ -208,8 +167,6 @@ class MapFragment : BaseFragment(), OnMapReadyCallback {
             .radius(GEOFENCE_RADIUS.toDouble())
             .strokeColor(Color.RED)
             .fillColor(Color.BLUE))
-
-
         geofencingClient.addGeofences(getGeofencingRequest(geofence),
             getGeofencePendingIntent())
             .addOnCompleteListener { task ->
@@ -242,4 +199,5 @@ class MapFragment : BaseFragment(), OnMapReadyCallback {
             .setLoiteringDelay(10000)
             .build();
     }
+    */
 }

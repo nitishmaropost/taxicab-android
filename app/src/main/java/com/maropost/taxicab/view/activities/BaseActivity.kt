@@ -121,7 +121,7 @@ open class BaseActivity : AppCompatActivity() {
     /**
      * Get backstack fragment count
      */
-    fun getFragmentCount(): Int {
+    private fun getFragmentCount(): Int {
         return supportFragmentManager.backStackEntryCount
     }
 
@@ -248,7 +248,7 @@ open class BaseActivity : AppCompatActivity() {
      */
     fun popFragmentByTag(tag:String){
         try {
-            getSupportFragmentManager().popBackStack(tag, FragmentManager.POP_BACK_STACK_INCLUSIVE)
+            supportFragmentManager.popBackStack(tag, FragmentManager.POP_BACK_STACK_INCLUSIVE)
         } catch (e: Exception) {
             e.printStackTrace()
         }

@@ -20,6 +20,8 @@ import android.media.ExifInterface
 import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
 import com.maropost.taxicab.application.MyApplication
+import android.location.Geocoder
+import java.util.*
 
 
 class Utility {
@@ -225,6 +227,26 @@ class Utility {
     fun showKeyboard(editText: EditText) {
         val imm = MyApplication.getInstance().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
         imm.showSoftInput(editText, InputMethodManager.SHOW_IMPLICIT)
+    }
+
+     fun getCompleteAddressString(context: Context,latitude: Double, longitude: Double): String {
+        var strAdd = ""
+        val geocoder = Geocoder(context, Locale.getDefault())
+        try {
+            val addresses = geocoder.getFromLocation(latitude, longitude, 1)
+            if (addresses != null) {
+                val returnedAddress = addresses[0]
+                val strReturnedAddress = StringBuilder("")
+
+                for (i in 0..returnedAddress.maxAddressLineIndex) {
+                    strReturnedAddress.append(returnedAddress.getAddressLine(i)).append("\n")
+                }
+                strAdd = strReturnedAddress.toString()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        return strAdd
     }
 
 }
