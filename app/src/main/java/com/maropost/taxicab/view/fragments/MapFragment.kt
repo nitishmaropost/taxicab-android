@@ -3,16 +3,18 @@ package com.maropost.taxicab.view.fragments
 import android.Manifest
 import android.arch.lifecycle.Observer
 import android.content.pm.PackageManager
-import android.location.Location
 import android.os.Build
 import android.os.Bundle
 import android.support.v4.content.ContextCompat
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Button
+import android.widget.TextView
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.GeofencingClient
 import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.places.Place
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
@@ -26,7 +28,7 @@ import com.maropost.taxicab.utils.Utility
 import com.maropost.taxicab.viewmodel.MapsViewModel
 import kotlinx.android.synthetic.main.maps_fragment.*
 
-class MapFragment : BaseFragment(), OnMapReadyCallback {
+class MapFragment : BaseFragment(), OnMapReadyCallback, SearchFragment.SearchFragmentCallbacks {
 
     private var mView : View?= null
     private val REQUEST_CHECK_SETTINGS = 100
@@ -41,16 +43,30 @@ class MapFragment : BaseFragment(), OnMapReadyCallback {
     private lateinit var points : ArrayList<LatLng>
     private var firstTimeFlag: Boolean = true
     private val mapsViewModel = MapsViewModel()
+    private var mTxtPickUp: TextView ?= null
+    private var txtDropAt: TextView ?= null
+    private var txtDrop: TextView ?= null
+    private var btnRideNow: Button ? = null
+    private var originLatLng : LatLng ?= null
+    private var destLatLng : LatLng ?= null
 
+    enum class REQUEST_TYPE{
+        PICKUP,
+        DROP
+    }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
         if(mView == null) {
             mView = inflater.inflate(R.layout.maps_fragment, container, false)
             points = ArrayList()
+            mapFragment = childFragmentManager.findFragmentById(R.id.map) as SupportMapFragment
+            mTxtPickUp = mView?.findViewById(R.id.txtPickup) as TextView
+            btnRideNow = mView?.findViewById(R.id.btnRideNow) as Button
+            txtDropAt = mView?.findViewById(R.id.txtDropAt) as TextView
+            txtDrop = mView?.findViewById(R.id.txtDrop) as TextView
             mFusedLocationClient = LocationServices.getFusedLocationProviderClient(activity!!)
             geofencingClient = LocationServices.getGeofencingClient(activity!!)
-            mapFragment = childFragmentManager.findFragmentById(R.id.map) as SupportMapFragment
-            mapFragment?.getMapAsync(this);
+            mapFragment?.getMapAsync(this)
         }
         return mView
     }
@@ -66,13 +82,14 @@ class MapFragment : BaseFragment(), OnMapReadyCallback {
 
     override fun onResume() {
         super.onResume()
-        requestLocationUpdates()
+        mapFragment?.onResume()
+        //requestLocationUpdates()
     }
 
     override fun onPause() {
         super.onPause()
-        //stop location updates when Activity is no longer active
-        removeLocationUpdates()
+        mapFragment?.onPause()
+        //removeLocationUpdates()
     }
 
     override fun onMapReady(googleMap: GoogleMap) {
@@ -84,23 +101,40 @@ class MapFragment : BaseFragment(), OnMapReadyCallback {
     private fun observeLiveDataChanges(){
         mapsViewModel.currentLocation.observe(this, Observer { location ->
             if (firstTimeFlag && mGoogleMap != null) {
-                animateCamera(location!!)
+
                 firstTimeFlag = false
-                showMarker(location)
-                txtPickup.text= Utility.getInstance().getCompleteAddressString(activity!!,location.latitude,location.longitude)
+                originLatLng = LatLng(location!!.latitude, location.longitude)
+                showMarker(originLatLng!!)
+                animateCamera(originLatLng!!)
+                mTxtPickUp?.text= Utility.getInstance().getCompleteAddressString(activity!!,location.latitude,location.longitude)
+                removeLocationUpdates()
             }
+        })
+
+        mapsViewModel.mLineOptions.observe(this, Observer { lineOptions ->
+            if(mGoogleMap != null)
+                mGoogleMap?.addPolyline(lineOptions)
         })
     }
 
     private fun initialiseListeners() {
         lnrPickup.setOnClickListener{
-        replaceFragment(SearchFragment(),true)
+            openSearchFragment(REQUEST_TYPE.PICKUP)
         }
         lnrDrop.setOnClickListener{
-
+            openSearchFragment(REQUEST_TYPE.DROP)
+        }
+        btnRideNow?.setOnClickListener{
+            btnRideNow?.visibility = View.INVISIBLE
+            mapsViewModel.getDirectionsUrl(originLatLng, destLatLng)
         }
     }
 
+    private fun openSearchFragment(requestType: REQUEST_TYPE) {
+        val searchFragment = SearchFragment()
+        searchFragment.initialiseCallback(this,requestType)
+        replaceFragment(searchFragment,true)
+    }
 
     private fun checkForLocationPermission() {
         if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -124,23 +158,23 @@ class MapFragment : BaseFragment(), OnMapReadyCallback {
 
     private fun requestLocationUpdates(){
         if(mGoogleMap != null)
-        mapsViewModel.requestLocationUpdates(activity!!,mFusedLocationClient,mGoogleMap!!,REQUEST_CHECK_SETTINGS)
+            mapsViewModel.requestLocationUpdates(activity!!,mFusedLocationClient,mGoogleMap!!,REQUEST_CHECK_SETTINGS)
     }
 
 
-    private fun animateCamera(location: Location) {
+    private fun animateCamera(latLng: LatLng) {
         if(mGoogleMap != null) {
-            val latLng = LatLng(location.latitude, location.longitude)
-            mGoogleMap?.animateCamera(CameraUpdateFactory.newCameraPosition(getCameraPositionWithBearing(latLng)));
+            //val latLng = LatLng(location.latitude, location.longitude)
+            mGoogleMap?.animateCamera(CameraUpdateFactory.newCameraPosition(getCameraPositionWithBearing(latLng)))
         }
     }
 
-     private fun getCameraPositionWithBearing(latLng: LatLng):CameraPosition {
+    private fun getCameraPositionWithBearing(latLng: LatLng):CameraPosition {
         return CameraPosition.Builder().target(latLng).zoom(16f).build()
     }
 
-    private fun showMarker(currentLocation: Location) {
-        val latLng = LatLng(currentLocation.latitude, currentLocation.longitude)
+    private fun showMarker(latLng: LatLng) {
+        //val latLng = LatLng(currentLocation.latitude, currentLocation.longitude)
         if (mCurrLocationMarker == null)
             mCurrLocationMarker = mGoogleMap?.addMarker(MarkerOptions().icon(BitmapDescriptorFactory.defaultMarker()).position(latLng))
         else
@@ -148,56 +182,35 @@ class MapFragment : BaseFragment(), OnMapReadyCallback {
     }
 
 
-   private fun removeLocationUpdates() {
+    private fun removeLocationUpdates() {
         if (mFusedLocationClient != null)
             mapsViewModel.removeLocationUpdates(mFusedLocationClient!!)
     }
 
-/*
-    @SuppressLint("MissingPermission")
-    private fun addLocationAlert(lat: Double, lng: Double){
-        val key : String = "" + lat + "" + lng
-        val geofence = getGeofence(lat, lng, key)
-        if(mapCircle != null) {
-            mapCircle?.remove()
-            mapCircle = null
-        }
-        mapCircle = mGoogleMap?.addCircle(CircleOptions()
-            .center(LatLng(lat,lng))
-            .radius(GEOFENCE_RADIUS.toDouble())
-            .strokeColor(Color.RED)
-            .fillColor(Color.BLUE))
-        geofencingClient.addGeofences(getGeofencingRequest(geofence),
-            getGeofencePendingIntent())
-            .addOnCompleteListener { task ->
-                if (task.isSuccessful)
-                    Toast.makeText(activity, "Location alert has been added", Toast.LENGTH_SHORT).show();
-                else
-                    Toast.makeText(activity, "Location alert could not be added", Toast.LENGTH_SHORT).show();
-            }
+    override fun onPickupLocationSelected(place: Place, placeName: String) {
+        originLatLng = place.latLng
+        showMarker(originLatLng!!)
+        animateCamera(originLatLng!!)
+        mTxtPickUp?.text= placeName
+        validatePickupAndDropDetails()
     }
 
-    private  fun getGeofencePendingIntent() : PendingIntent {
-        val intent = Intent(activity, LocationAlertIntentService::class.java)
-        return PendingIntent.getService(activity, 0, intent,
-            PendingIntent.FLAG_UPDATE_CURRENT);
+    override fun onDropLocationSelected(place: Place, placeName: String) {
+        destLatLng = place.latLng
+        mCurrLocationMarker = mGoogleMap?.addMarker(MarkerOptions().icon(BitmapDescriptorFactory.defaultMarker()).position(destLatLng!!))
+        animateCamera(destLatLng!!)
+        validatePickupAndDropDetails()
+        txtDropAt?.visibility = View.VISIBLE
+        txtDrop?.text = placeName
     }
 
-    private fun getGeofencingRequest(geofence: Geofence): GeofencingRequest {
-        val builder = GeofencingRequest.Builder()
-        builder.setInitialTrigger(GeofencingRequest.INITIAL_TRIGGER_DWELL);
-        builder.addGeofence(geofence)
-        return builder.build()
+    /**
+     * Check if origin and destination latlng details are available, then draw route b/w two points
+     */
+    private fun validatePickupAndDropDetails() {
+        if(originLatLng  != null && destLatLng != null)
+            btnRideNow?.visibility = View.VISIBLE
+        else
+            btnRideNow?.visibility = View.INVISIBLE
     }
-
-    private fun getGeofence(lat: Double,lang: Double,key: String) : Geofence {
-        return Geofence.Builder()
-            .setRequestId(key)
-            .setCircularRegion(lat, lang, GEOFENCE_RADIUS)
-            .setExpirationDuration(Geofence.NEVER_EXPIRE)
-            .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_ENTER)
-            .setLoiteringDelay(10000)
-            .build();
-    }
-    */
 }

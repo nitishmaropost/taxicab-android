@@ -9,8 +9,11 @@ import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.common.api.ResolvableApiException
 import com.google.android.gms.location.*
 import com.google.android.gms.maps.GoogleMap
+import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.PolylineOptions
+import com.maropost.taxicab.asynctasks.DownloadTask
 
-class MapsModel(private val mapModelCallback: MapModelCallback) {
+class MapsModel(private val mapModelCallback: MapModelCallback):DownloadTask.DownloadTaskCallbacks {
 
     private var mLocationRequest: LocationRequest? = null
     private var currentLocation: Location? = null
@@ -22,8 +25,8 @@ class MapsModel(private val mapModelCallback: MapModelCallback) {
                                 mGoogleMap: GoogleMap,
                                 REQUEST_CHECK_SETTINGS: Int){
         mLocationRequest = LocationRequest()
-        mLocationRequest?.interval = 12000 // two minute interval
-        mLocationRequest?.fastestInterval = 12000
+        mLocationRequest?.interval = 5000 // two minute interval
+        mLocationRequest?.fastestInterval = 6000
         mLocationRequest?.priority = LocationRequest.PRIORITY_HIGH_ACCURACY
         val builder = LocationSettingsRequest.Builder()
             .addLocationRequest(mLocationRequest!!)
@@ -65,39 +68,40 @@ class MapsModel(private val mapModelCallback: MapModelCallback) {
         mFusedLocationClient.removeLocationUpdates(mLocationCallback)
     }
 
+    /**
+     * Get directions from google api to display route b/w 2 points
+     */
+    fun getDirectionsUrl(origin: LatLng?, dest: LatLng?) {
+        // Origin of route
+        val str_origin = "origin=" + origin?.latitude + "," + origin?.longitude
+
+        // Destination of route
+        val str_dest = "destination=" + dest?.latitude + "," + dest?.longitude
+
+        // Sensor enabled
+        val sensor = "sensor=false"
+
+        // Building the parameters to the web service
+        val parameters = "$str_origin&$str_dest&$sensor"
+
+        // Output format
+        val output = "json"
+
+        // Building the url to the web service
+        val url = "https://maps.googleapis.com/maps/api/directions/$output?$parameters"
+
+        val downloadTask = DownloadTask(this)
+        // Start downloading json data from Google Directions API
+        downloadTask.execute(url)
+
+    }
+
 
     /**
      * Callback for location received
      */
     private var mLocationCallback: LocationCallback = object : LocationCallback() {
         override fun onLocationResult(locationResult: LocationResult) {
-            /* val locationList = locationResult.locations
-             if (locationList.size > 0) {
-                 //The last location in the list is the newest
-                 val location = locationList[locationList.size - 1]
-                 Log.i("MapsActivity", "Location: " + location.latitude + " " + location.longitude)
-                 mLastLocation = location
-                 if (mCurrLocationMarker != null) {
-                     mCurrLocationMarker?.remove()
-                 }
-
-                 //Place current location marker
-                 val latLng = LatLng(location.latitude, location.longitude)
-                 Toast.makeText(activity,
-                     "Latitude :" + location.latitude + " " + "Longitude " + location.longitude,
-                     Toast.LENGTH_LONG).show()
-                 val markerOptions = MarkerOptions()
-                 markerOptions.position(latLng)
-                 markerOptions.title("Current Position")
-                 markerOptions.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_MAGENTA))
-                 mCurrLocationMarker = mGoogleMap?.addMarker(markerOptions)
-
-                 //move map camera
-                 mGoogleMap?.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 11f))
-
-                 // If do not want location updates further, remove them.
-                 //removeLocationUpdates()
-             }*/
             if (locationResult.lastLocation == null)
                 return
             currentLocation = locationResult.lastLocation
@@ -105,8 +109,13 @@ class MapsModel(private val mapModelCallback: MapModelCallback) {
         }
     }
 
+    override fun onLineOptionsObtained(lineOptions: PolylineOptions?) {
+        mapModelCallback.onLineOptionsObtained(lineOptions)
+    }
+
     interface MapModelCallback{
         fun onLocationChanged(currentLocation:Location)
+        fun onLineOptionsObtained(lineOptions: PolylineOptions?)
     }
 
 }

@@ -40,7 +40,7 @@ open class BaseFragment : Fragment() {
      */
     fun popCurrentFragment() {
         try {
-            (activity as BaseActivity).popCurrentFragment();
+            (activity as BaseActivity).popCurrentFragment()
         } catch (e:Exception) {
           e.printStackTrace()
         }

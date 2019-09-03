@@ -9,6 +9,7 @@ class MainActivity : BaseActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        replaceFragment(MapFragment(),false)
+        //replaceFragment(SplashFragment(),false)
+        replaceFragment(MapFragment(),true)
     }
 }

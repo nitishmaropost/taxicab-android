@@ -184,16 +184,16 @@ open class BaseActivity : AppCompatActivity() {
         val transaction = getSupportFragmentManager().beginTransaction();
         val tag = fragment.javaClass.simpleName;
         if (addToBackStack) {
-            transaction.addToBackStack(tag);
+            transaction.addToBackStack(tag)
         } /*else {
             tag = null
         }*/
         when (transactionType) {
             TransactionType.REPLACE -> {
-                transaction.replace(R.id.mainContainer, fragment, tag);
+                transaction.replace(R.id.mainContainer, fragment, tag)
             }
             TransactionType.ADD -> {
-                transaction.add(R.id.mainContainer, fragment, tag);
+                transaction.add(R.id.mainContainer, fragment, tag)
             }
         }
         transaction.commitAllowingStateLoss();
